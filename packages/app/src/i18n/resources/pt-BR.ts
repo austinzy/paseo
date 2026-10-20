@@ -1398,6 +1398,11 @@ export const ptBR: TranslationResources = {
     },
   },
   desktop: {
+    tray: {
+      title: "Janela",
+      closeToTray: "Fechar para a bandeja do sistema",
+      hint: "O Paseo continua em execução ao fechar a janela. Use o ícone da bandeja para restaurar ou sair.",
+    },
     windowControls: {
       minimize: "Minimizar janela",
       maximize: "Maximizar janela",

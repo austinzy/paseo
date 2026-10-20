@@ -58,6 +58,7 @@ import { createBrowserCaptureService } from "./features/browser-capture.js";
 import { registerEditorTargetHandlers } from "./features/editor-targets/ipc.js";
 import { resolveAppIconPath } from "./features/stamped-icon.js";
 import { setupApplicationMenu } from "./features/menu.js";
+import { createCloseToTray } from "./features/close-to-tray.js";
 import {
   BROWSER_NEW_TAB_REQUEST_EVENT,
   decideBrowserWindowOpenRequest,
@@ -620,6 +621,7 @@ function getDevBuildLabel(): string | null {
 }
 
 let cachedEffectiveIconPath: string | null = null;
+let closeToTray: ReturnType<typeof createCloseToTray> | null = null;
 
 async function getEffectiveAppIconPath(): Promise<string | null> {
   if (cachedEffectiveIconPath !== null) {
@@ -713,6 +715,7 @@ async function createWindow(
 
   const webContentsId = mainWindow.webContents.id;
   options.onCreated?.(webContentsId);
+  closeToTray?.attach(mainWindow);
   mainWindow.webContents.on("did-start-navigation", (_event, _url, isSameDocument, isMainFrame) => {
     if (isMainFrame && !isSameDocument) {
       agentNavigationInbox.windowLoading(webContentsId);
@@ -891,6 +894,10 @@ function setupSingleInstanceLock(): boolean {
       isDefaultApp: false,
     });
     log.info("[open-project] second-instance openProjectPath:", openProjectPath);
+    if (closeToTray?.hasHiddenWindows() && !openProjectPath) {
+      closeToTray.restore();
+      return;
+    }
     // Relaunching the app (CLI `paseo [path]`, double-click, etc.) opens a new
     // window rather than focusing the existing one. Wait for bootstrap (not just
     // app.whenReady) so the protocol + IPC handlers exist before the window loads.
@@ -965,7 +972,23 @@ async function bootstrap(): Promise<void> {
     },
   });
   ensureNotificationCenterRegistration();
-  registerDaemonManager();
+  if (process.platform === "win32") {
+    const iconPath = await getEffectiveAppIconPath();
+    if (iconPath) {
+      closeToTray = createCloseToTray({
+        iconPath,
+        appName: APP_NAME,
+        quit: () => app.quit(),
+        show: () => {
+          void desktopWindowOwner.restoreWhenActivated().catch((error) => {
+            log.error("[tray] failed to restore window", error);
+          });
+        },
+      });
+      closeToTray.setEnabled((await getDesktopSettingsStore().get()).closeToTray);
+    }
+  }
+  registerDaemonManager((settings) => closeToTray?.setEnabled(settings.closeToTray));
   registerWindowManager({ mode: DESKTOP_WINDOW_CHROME_MODE });
   registerDialogHandlers();
   registerNotificationHandlers();
@@ -1062,7 +1085,10 @@ electronAutoUpdater.on("before-quit-for-update", () => {
   log.info("[auto-updater] before-quit-for-update", { currentVersion: app.getVersion() });
   quitLifecycle.handleBeforeQuitForUpdate();
 });
-app.on("before-quit", quitLifecycle.handleBeforeQuit);
+app.on("before-quit", (event) => {
+  closeToTray?.beginQuit();
+  quitLifecycle.handleBeforeQuit(event);
+});
 registerExternalQuitSignals({ signals: process, quit: () => app.quit() });
 
 app.on("window-all-closed", () => {

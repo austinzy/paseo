@@ -1361,6 +1361,11 @@ export const zhCN: TranslationResources = {
     },
   },
   desktop: {
+    tray: {
+      title: "窗口",
+      closeToTray: "关闭时最小化到系统托盘",
+      hint: "关闭窗口后 Paseo 继续运行。点击托盘图标恢复窗口，或从托盘菜单退出。",
+    },
     windowControls: {
       minimize: "最小化窗口",
       maximize: "最大化窗口",

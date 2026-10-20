@@ -311,7 +311,9 @@ export function setupWindowStatePersistence(win: BrowserWindow, store: WindowSta
   win.on("move", scheduleSave);
   win.on("maximize", saveNow);
   win.on("unmaximize", saveNow);
-  win.on("close", flushFinal);
+  win.on("close", (event) => {
+    if (!event.defaultPrevented) flushFinal();
+  });
   app.on("before-quit", flushFinal);
 
   win.on("closed", () => {

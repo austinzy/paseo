@@ -12,6 +12,7 @@ import { i18n } from "@/i18n/i18next";
 const DESKTOP_SETTINGS_QUERY_KEY = ["desktop-settings"] as const;
 
 export interface DesktopSettings {
+  closeToTray: boolean;
   releaseChannel: ReleaseChannel;
   notifications: {
     playSound: boolean;
@@ -23,12 +24,14 @@ export interface DesktopSettings {
 }
 
 export interface DesktopSettingsPatch {
+  closeToTray?: boolean;
   releaseChannel?: ReleaseChannel;
   notifications?: Partial<DesktopSettings["notifications"]>;
   daemon?: Partial<DesktopSettings["daemon"]>;
 }
 
 export const DEFAULT_DESKTOP_SETTINGS: DesktopSettings = {
+  closeToTray: false,
   releaseChannel: "stable",
   notifications: {
     playSound: true,
@@ -156,6 +159,7 @@ function parseDesktopSettings(raw: unknown): DesktopSettings {
 
   return {
     releaseChannel: record.releaseChannel === "beta" ? "beta" : "stable",
+    closeToTray: typeof record.closeToTray === "boolean" ? record.closeToTray : false,
     notifications: {
       playSound:
         typeof notifications.playSound === "boolean"
@@ -181,6 +185,7 @@ function mergeDesktopSettings(
 ): DesktopSettings {
   return {
     releaseChannel: updates.releaseChannel ?? current.releaseChannel,
+    closeToTray: updates.closeToTray ?? current.closeToTray,
     notifications: {
       ...current.notifications,
       ...updates.notifications,
@@ -194,6 +199,7 @@ function mergeDesktopSettings(
 
 function normalizePatch(updates: DesktopSettingsPatch): Record<string, unknown> {
   return {
+    ...(updates.closeToTray !== undefined ? { closeToTray: updates.closeToTray } : {}),
     ...(updates.releaseChannel ? { releaseChannel: updates.releaseChannel } : {}),
     ...(updates.notifications ? { notifications: updates.notifications } : {}),
     ...(updates.daemon ? { daemon: updates.daemon } : {}),

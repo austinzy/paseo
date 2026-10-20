@@ -20,6 +20,18 @@ function settingsFilePath(userDataPath: string): string {
 describe("desktop-settings", () => {
   const directories = new Set<string>();
 
+  it("persists close-to-tray preferences across launches and unrelated patches", async () => {
+    const userDataPath = await createTempUserDataDir();
+    directories.add(userDataPath);
+    const store = createDesktopSettingsStore({ userDataPath });
+    await store.patch({ closeToTray: true });
+    await store.patch({ notifications: { playSound: false } });
+    const reloaded = createDesktopSettingsStore({ userDataPath });
+    expect((await reloaded.get()).closeToTray).toBe(true);
+    await reloaded.patch({ closeToTray: false });
+    expect((await createDesktopSettingsStore({ userDataPath }).get()).closeToTray).toBe(false);
+  });
+
   afterEach(async () => {
     await Promise.all(
       [...directories].map(async (directory) => {
@@ -81,6 +93,7 @@ describe("desktop-settings", () => {
 
     expect(settings).toEqual({
       releaseChannel: "stable",
+      closeToTray: false,
       notifications: { playSound: true },
       daemon: {
         manageBuiltInDaemon: true,
@@ -103,6 +116,7 @@ describe("desktop-settings", () => {
 
     expect(next).toEqual({
       releaseChannel: "beta",
+      closeToTray: false,
       notifications: { playSound: true },
       daemon: {
         manageBuiltInDaemon: true,
@@ -270,6 +284,7 @@ describe("desktop-settings", () => {
 
     expect(migrated).toEqual({
       releaseChannel: "beta",
+      closeToTray: false,
       notifications: { playSound: true },
       daemon: {
         manageBuiltInDaemon: false,
@@ -315,6 +330,7 @@ describe("desktop-settings", () => {
     expect(persisted.settings.releaseChannel).toBe("beta");
     expect(next).toEqual({
       releaseChannel: "beta",
+      closeToTray: false,
       notifications: { playSound: false },
       daemon: { manageBuiltInDaemon: true, keepRunningAfterQuit: false },
     });

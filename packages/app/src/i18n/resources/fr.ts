@@ -1402,6 +1402,11 @@ export const fr: TranslationResources = {
     },
   },
   desktop: {
+    tray: {
+      title: "Fenêtre",
+      closeToTray: "Fermer dans la zone de notification",
+      hint: "Paseo reste actif après la fermeture de la fenêtre. Utilisez son icône pour restaurer la fenêtre ou quitter.",
+    },
     windowControls: {
       minimize: "Réduire la fenêtre",
       maximize: "Agrandir la fenêtre",

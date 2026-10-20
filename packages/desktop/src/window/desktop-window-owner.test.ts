@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createDesktopWindowOwner, type OwnedDesktopWindow } from "./desktop-window-owner.js";
 
 interface Target {
@@ -52,6 +52,20 @@ function harness() {
 }
 
 describe("desktop window owner", () => {
+  it("restores and focuses an existing minimized window on activation", async () => {
+    const h = harness();
+    await h.owner.openPrimary();
+    const window = h.windows[0];
+    window.isMinimized = () => true;
+    window.restore = vi.fn();
+    window.show = vi.fn();
+    window.focus = vi.fn();
+    await h.owner.restoreWhenActivated();
+    expect(h.launches).toHaveLength(1);
+    expect(window.restore).toHaveBeenCalledOnce();
+    expect(window.show).toHaveBeenCalledOnce();
+    expect(window.focus).toHaveBeenCalledOnce();
+  });
   it("restores only primary launches and routes pending projects per window", async () => {
     const h = harness();
     await h.owner.openPrimary({ pendingProjectPath: " /project/a " });

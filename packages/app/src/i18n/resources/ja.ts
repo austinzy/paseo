@@ -1386,6 +1386,11 @@ export const ja: TranslationResources = {
     },
   },
   desktop: {
+    tray: {
+      title: "ウィンドウ",
+      closeToTray: "閉じるとシステムトレイに格納",
+      hint: "ウィンドウを閉じても Paseo を実行し続けます。トレイから復元または終了できます。",
+    },
     windowControls: {
       minimize: "ウィンドウを最小化",
       maximize: "ウィンドウを最大化",

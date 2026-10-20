@@ -7,6 +7,7 @@ import { z } from "zod";
 import type { AppReleaseChannel } from "../features/auto-updater.js";
 
 export interface DesktopSettings {
+  closeToTray: boolean;
   releaseChannel: AppReleaseChannel;
   notifications: {
     playSound: boolean;
@@ -18,6 +19,7 @@ export interface DesktopSettings {
 }
 
 interface DesktopSettingsPatch {
+  closeToTray?: boolean;
   releaseChannel?: AppReleaseChannel;
   notifications?: Partial<DesktopSettings["notifications"]>;
   daemon?: Partial<DesktopSettings["daemon"]>;
@@ -30,6 +32,7 @@ export interface DesktopSettingsStore {
 }
 
 export const DEFAULT_DESKTOP_SETTINGS: DesktopSettings = {
+  closeToTray: false,
   releaseChannel: "stable",
   notifications: {
     playSound: true,
@@ -59,6 +62,7 @@ const DaemonSchema = z
 
 const DesktopSettingsSchema = z
   .looseObject({
+    closeToTray: z.boolean().catch(DEFAULT_DESKTOP_SETTINGS.closeToTray),
     releaseChannel: ReleaseChannelSchema.catch(DEFAULT_DESKTOP_SETTINGS.releaseChannel),
     notifications: NotificationsSchema,
     daemon: DaemonSchema,
@@ -105,6 +109,7 @@ function isNodeError(error: unknown): error is NodeJS.ErrnoException {
 
 function buildDefaultSettings(): StoredDesktopSettings {
   return {
+    closeToTray: DEFAULT_DESKTOP_SETTINGS.closeToTray,
     releaseChannel: DEFAULT_DESKTOP_SETTINGS.releaseChannel,
     notifications: { ...DEFAULT_DESKTOP_SETTINGS.notifications },
     daemon: { ...DEFAULT_DESKTOP_SETTINGS.daemon },
@@ -124,6 +129,7 @@ function buildDefaultDocument(): PersistedDesktopSettingsDocument {
 
 function toDesktopSettings(stored: StoredDesktopSettings): DesktopSettings {
   return {
+    closeToTray: stored.closeToTray,
     releaseChannel: stored.releaseChannel,
     notifications: { playSound: stored.notifications.playSound },
     daemon: {
@@ -139,6 +145,8 @@ function coerceDesktopSettingsPatch(input: unknown): DesktopSettingsPatch {
   }
 
   const patch: DesktopSettingsPatch = {};
+  const closeToTray = coerceBoolean(input.closeToTray);
+  if (closeToTray !== null) patch.closeToTray = closeToTray;
   const releaseChannel = coerceReleaseChannel(input.releaseChannel);
   if (releaseChannel) {
     patch.releaseChannel = releaseChannel;
@@ -196,6 +204,7 @@ function mergeDesktopSettings(
 ): StoredDesktopSettings {
   return {
     ...current,
+    closeToTray: patch.closeToTray ?? current.closeToTray,
     releaseChannel: patch.releaseChannel ?? current.releaseChannel,
     notifications: { ...current.notifications, ...patch.notifications },
     daemon: { ...current.daemon, ...patch.daemon },

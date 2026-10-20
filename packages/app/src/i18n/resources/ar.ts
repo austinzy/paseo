@@ -1372,6 +1372,11 @@ export const ar: TranslationResources = {
     },
   },
   desktop: {
+    tray: {
+      title: "النافذة",
+      closeToTray: "التصغير إلى علبة النظام عند الإغلاق",
+      hint: "يبقى Paseo قيد التشغيل عند إغلاق النافذة. استخدم أيقونة العلبة لاستعادتها أو للخروج.",
+    },
     windowControls: {
       minimize: "تصغير النافذة",
       maximize: "تكبير النافذة",

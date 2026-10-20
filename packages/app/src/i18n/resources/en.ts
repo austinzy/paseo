@@ -1380,6 +1380,11 @@ export const en = {
     },
   },
   desktop: {
+    tray: {
+      title: "Window",
+      closeToTray: "Close to system tray",
+      hint: "Keep Paseo running when you close a window. Use the tray icon to restore it or quit.",
+    },
     windowControls: {
       minimize: "Minimize window",
       maximize: "Maximize window",

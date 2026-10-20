@@ -1379,6 +1379,11 @@ export const ko: TranslationResources = {
     },
   },
   desktop: {
+    tray: {
+      title: "창",
+      closeToTray: "닫을 때 시스템 트레이로 최소화",
+      hint: "창을 닫아도 Paseo를 계속 실행합니다. 트레이에서 창을 복원하거나 종료할 수 있습니다.",
+    },
     windowControls: {
       minimize: "창 최소화",
       maximize: "창 최대화",

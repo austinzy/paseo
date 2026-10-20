@@ -22,6 +22,17 @@ function createStoreMock(): DesktopSettingsStore {
 }
 
 describe("desktop-settings-commands", () => {
+  it("notifies the window lifecycle after settings have been persisted", async () => {
+    const store = createStoreMock();
+    const onSettingsChanged = vi.fn();
+    const handlers = createDesktopSettingsCommandHandlers({
+      settingsStore: store,
+      onSettingsChanged,
+    });
+    const settings = await handlers.patch_desktop_settings({ closeToTray: true });
+    expect(onSettingsChanged).toHaveBeenCalledWith(settings);
+    expect(store.patch).toHaveBeenCalledWith({ closeToTray: true });
+  });
   it("exposes get and patch handlers through the desktop command bus shape", async () => {
     const store = createStoreMock();
     const handlers = createDesktopSettingsCommandHandlers({ settingsStore: store });

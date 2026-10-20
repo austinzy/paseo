@@ -1408,6 +1408,11 @@ export const es: TranslationResources = {
     },
   },
   desktop: {
+    tray: {
+      title: "Ventana",
+      closeToTray: "Cerrar en la bandeja del sistema",
+      hint: "Paseo sigue activo al cerrar la ventana. Usa el icono de la bandeja para restaurarla o salir.",
+    },
     windowControls: {
       minimize: "Minimizar ventana",
       maximize: "Maximizar ventana",

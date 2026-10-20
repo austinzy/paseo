@@ -398,9 +398,14 @@ async function resolveRequestedReleaseChannel(
 // IPC registration
 // ---------------------------------------------------------------------------
 
-export function createDaemonCommandHandlers(): Record<string, DesktopCommandHandler> {
+export function createDaemonCommandHandlers(
+  onSettingsChanged?: (settings: DesktopSettings) => void,
+): Record<string, DesktopCommandHandler> {
   return {
-    ...createDesktopSettingsCommandHandlers({ settingsStore: getDesktopSettingsStore() }),
+    ...createDesktopSettingsCommandHandlers({
+      settingsStore: getDesktopSettingsStore(),
+      onSettingsChanged,
+    }),
     desktop_get_runtime_info: () => ({
       appVersion: resolveDesktopAppVersion(),
       runningUnderARM64Translation: isRunningUnderARM64Translation(),
@@ -474,8 +479,10 @@ export function createDaemonCommandHandlers(): Record<string, DesktopCommandHand
   };
 }
 
-export function registerDaemonManager(): void {
-  const handlers = createDaemonCommandHandlers();
+export function registerDaemonManager(
+  onSettingsChanged?: (settings: DesktopSettings) => void,
+): void {
+  const handlers = createDaemonCommandHandlers(onSettingsChanged);
 
   ipcMain.handle(
     "paseo:invoke",

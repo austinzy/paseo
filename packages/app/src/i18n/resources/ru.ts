@@ -1391,6 +1391,11 @@ export const ru: TranslationResources = {
     },
   },
   desktop: {
+    tray: {
+      title: "Окно",
+      closeToTray: "Сворачивать в системный трей при закрытии",
+      hint: "Paseo продолжит работу после закрытия окна. Значок в трее позволяет восстановить окно или выйти.",
+    },
     windowControls: {
       minimize: "Свернуть окно",
       maximize: "Развернуть окно",
