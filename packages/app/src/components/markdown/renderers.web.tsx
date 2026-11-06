@@ -1,12 +1,27 @@
 import { Text } from "react-native";
-import { forwardRef, useCallback, useMemo, useState, type ComponentProps } from "react";
+import {
+  Children,
+  cloneElement,
+  forwardRef,
+  isValidElement,
+  useCallback,
+  useMemo,
+  useState,
+  type ComponentProps,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import type {
   CodeBlockRendererProps,
   LinkRendererProps,
   MarkdownRenderers,
 } from "react-native-enriched-markdown";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
-import { useFileLink } from "@/assistant-file-links";
+import {
+  formatFileLinkDisplayText,
+  useAssistantFileLinkEnvironment,
+  useFileLink,
+} from "@/assistant-file-links";
 import { useForgeShorthand } from "@/git/forge-shorthand";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { HighlightedCodeBlock } from "@/components/highlighted-code-block";
@@ -31,14 +46,53 @@ function WebCodeBlock({ code, language }: CodeBlockRendererProps) {
 // The library styles links inline, so a stylesheet :hover rule cannot underline them.
 const LINK_HOVER_STYLE = { textDecoration: "underline" } as const;
 
+/**
+ * The only two fields we read off the engine's RenderNode children. The library does not
+ * export `RenderNodeProps` from its public entry, and importing it out of the build output
+ * breaks on any upgrade that moves the file, so this mirrors just what we touch and the
+ * guard below degrades to the untouched children if that shape ever changes.
+ */
+interface PathTextNode {
+  type: string;
+  content: string;
+}
+
+function isPathTextNode(child: ReactNode): child is ReactElement<{ node: PathTextNode }> {
+  if (!isValidElement<{ node?: Partial<PathTextNode> }>(child)) return false;
+  const node = child.props.node;
+  if (!node || typeof node.content !== "string") return false;
+  return node.type === "Text" || node.type === "Code";
+}
+
+/**
+ * Swap the path a link displays while leaving the engine to render its own nodes, so
+ * inline-code fonts and backgrounds survive. Only a link whose visible text is a single
+ * path token qualifies: replacing several nodes would repeat the whole path in each one.
+ */
+function withDisplayPathText(children: ReactNode, displayText: string): ReactNode {
+  if (Children.toArray(children).filter(isPathTextNode).length !== 1) return children;
+  return Children.map(children, (child) =>
+    isPathTextNode(child)
+      ? cloneElement(child, { node: { ...child.props.node, content: displayText } })
+      : child,
+  );
+}
+
 function WebLink({ link, anchorProps, children }: LinkRendererProps) {
+  const { workspaceRoot } = useAssistantFileLinkEnvironment();
   const forgeShorthand = useForgeShorthand();
   // A forge reference like `#12` carries its web URL so hover, copy and new-tab opens work.
   const forgeUrl = link.sourceType === "text" ? forgeShorthand?.resolve(link.url) : null;
-  const { tooltipPath, onHoverIn } = useFileLink(
+  const { target, tooltipPath, onHoverIn } = useFileLink(
     forgeUrl ? markdownLinkSource(forgeUrl) : markdownLinkSource(link.url, link.sourceType),
   );
   const tooltip = forgeUrl ?? tooltipPath;
+  const displayText =
+    target && link.sourceType !== "markdown"
+      ? formatFileLinkDisplayText({ token: target.raw, workspaceRoot })
+      : null;
+  const displayChildren =
+    displayText === null ? children : withDisplayPathText(children, displayText);
   const [hovered, setHovered] = useState(false);
   const handleMouseEnter = useCallback(() => setHovered(true), []);
   const handleMouseLeave = useCallback(() => setHovered(false), []);
@@ -58,7 +112,7 @@ function WebLink({ link, anchorProps, children }: LinkRendererProps) {
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      {children}
+      {displayChildren}
     </a>
   );
   return (

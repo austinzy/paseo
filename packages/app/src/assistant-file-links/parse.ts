@@ -1,5 +1,9 @@
 import { ASSISTANT_FILE_EXTENSIONS } from "./extensions";
-import { isAbsolutePath } from "@/utils/path";
+import { isAbsolutePath, looksLikeWindowsPath, rewriteMsysDrivePath } from "@/utils/path";
+
+function rewritePathForWindowsHost(value: string, workspaceRoot?: string): string {
+  return workspaceRoot && looksLikeWindowsPath(workspaceRoot) ? rewriteMsysDrivePath(value) : value;
+}
 
 function safeDecodeURIComponent(value: string): string {
   try {
@@ -156,7 +160,9 @@ export function parseInlinePathToken(value: string): InlinePathTarget | null {
 
 export function parseFileProtocolUrl(value: string): InlinePathTarget | null {
   const trimmed = value?.trim();
-  if (!trimmed) {
+  // Windows Chromium treats bare drive paths as file URLs, absorbing :line
+  // into the filename. Leave those paths to the line-aware parsers below.
+  if (!trimmed || !trimmed.toLowerCase().startsWith(FILE_PROTOCOL)) {
     return null;
   }
 
@@ -217,7 +223,7 @@ export function classifyAssistantFileLink(
   options: AssistantHrefParseOptions = {},
 ): AssistantFileLinkClassification | null {
   const raw = value ?? "";
-  const trimmed = raw.trim();
+  const trimmed = rewritePathForWindowsHost(raw.trim(), options.workspaceRoot);
   if (!trimmed) {
     return null;
   }
@@ -233,10 +239,11 @@ export function classifyAssistantFileLink(
     return null;
   }
 
-  const target = parseAssistantFileLink(trimmed, options);
-  if (!target) {
+  const parsedTarget = parseAssistantFileLinkValue(trimmed, options);
+  if (!parsedTarget) {
     return null;
   }
+  const target = trimmed === raw.trim() ? parsedTarget : { ...parsedTarget, raw };
 
   if (!options.explicitLink && isAmbiguousWorkspaceCandidate(trimmed, target, options)) {
     return {
@@ -254,6 +261,17 @@ export function classifyAssistantFileLink(
 export function parseAssistantFileLink(
   value: string,
   options: AssistantHrefParseOptions = {},
+): InlinePathTarget | null {
+  const rewritten = rewritePathForWindowsHost(value?.trim() ?? "", options.workspaceRoot);
+  const changed = rewritten !== value?.trim();
+  const target = parseAssistantFileLinkValue(changed ? rewritten : value, options);
+  // Display replacement depends on the agent's original MSYS spelling.
+  return target && changed ? { ...target, raw: value } : target;
+}
+
+function parseAssistantFileLinkValue(
+  value: string,
+  options: AssistantHrefParseOptions,
 ): InlinePathTarget | null {
   const fileUrlTarget = parseFileProtocolUrl(value);
   if (fileUrlTarget) {
@@ -491,7 +509,7 @@ export function normalizeInlinePathTarget(
     return null;
   }
 
-  const normalizedInput = normalizePathInput(rawPath);
+  const normalizedInput = normalizePathInput(rewritePathForWindowsHost(rawPath.trim(), cwd));
   if (!normalizedInput) {
     return null;
   }

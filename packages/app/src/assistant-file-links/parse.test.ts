@@ -65,6 +65,20 @@ describe("parseInlinePathToken", () => {
 });
 
 describe("parseFileProtocolUrl", () => {
+  it("requires an explicit file scheme for drive paths", () => {
+    expect(parseFileProtocolUrl("C:/repo/src/app.tsx:12")).toBeNull();
+    expect(parseFileProtocolUrl("C:\\repo\\src\\app.tsx:12")).toBeNull();
+  });
+
+  it("accepts an uppercase file scheme", () => {
+    expect(parseFileProtocolUrl("FILE:///C:/repo/src/app.tsx#L12")).toEqual({
+      raw: "FILE:///C:/repo/src/app.tsx#L12",
+      path: "C:/repo/src/app.tsx",
+      lineStart: 12,
+      lineEnd: undefined,
+    });
+  });
+
   it("parses file URLs with line fragments", () => {
     expect(parseFileProtocolUrl("file:///Users/test/project/src/app.tsx#L81")).toEqual({
       raw: "file:///Users/test/project/src/app.tsx#L81",
@@ -201,6 +215,22 @@ describe("classifyAssistantFileLink", () => {
     }
   });
 
+  it("classifies a rewritten MSYS path as a direct file", () => {
+    expect(
+      classifyAssistantFileLink("/c/repo/src/app.tsx:12", {
+        workspaceRoot: "C:/repo",
+      }),
+    ).toEqual({
+      kind: "directFile",
+      target: {
+        raw: "/c/repo/src/app.tsx:12",
+        path: "C:/repo/src/app.tsx",
+        lineStart: 12,
+        lineEnd: undefined,
+      },
+    });
+  });
+
   it("does not classify shell commands containing path arguments as file candidates", () => {
     expect(
       classifyAssistantFileLink(
@@ -320,6 +350,159 @@ describe("parseAssistantFileLink", () => {
       path: "C:/repo/src/app.tsx",
       lineStart: 12,
       lineEnd: 20,
+    });
+  });
+
+  it("keeps parsing plain Windows hrefs with a single line suffix", () => {
+    expect(
+      parseAssistantFileLink("C:/repo/src/app.tsx:12", {
+        workspaceRoot: "C:/repo",
+      }),
+    ).toEqual({
+      raw: "C:/repo/src/app.tsx:12",
+      path: "C:/repo/src/app.tsx",
+      lineStart: 12,
+      lineEnd: undefined,
+    });
+  });
+
+  it("keeps parsing Windows file URLs", () => {
+    expect(
+      parseAssistantFileLink("file:///C:/repo/src/app.tsx#L12", {
+        workspaceRoot: "C:/repo",
+      }),
+    ).toEqual({
+      raw: "file:///C:/repo/src/app.tsx#L12",
+      path: "C:/repo/src/app.tsx",
+      lineStart: 12,
+      lineEnd: undefined,
+    });
+  });
+
+  it("keeps parsing POSIX hrefs under a POSIX workspace root", () => {
+    expect(
+      parseAssistantFileLink("/repo/src/app.tsx:12", {
+        workspaceRoot: "/repo",
+      }),
+    ).toEqual({
+      raw: "/repo/src/app.tsx:12",
+      path: "/repo/src/app.tsx",
+      lineStart: 12,
+      lineEnd: undefined,
+    });
+  });
+
+  it("keeps resolving workspace-relative paths under a Windows workspace root", () => {
+    expect(
+      parseAssistantFileLink("src/app.tsx:12", {
+        workspaceRoot: "C:/repo",
+      }),
+    ).toEqual({
+      raw: "src/app.tsx:12",
+      path: "C:/repo/src/app.tsx",
+      lineStart: 12,
+      lineEnd: undefined,
+    });
+  });
+
+  // `raw` must stay the agent's original token: the display-text replacement
+  // decides from it whether the link was MSYS, so rewriting `raw` would make
+  // that replacement silently never fire.
+  it("rewrites MSYS paths to drive paths when the workspace root proves a Windows host", () => {
+    expect(
+      parseAssistantFileLink("/c/repo/src/app.tsx:12", {
+        workspaceRoot: "C:/repo",
+      }),
+    ).toEqual({
+      raw: "/c/repo/src/app.tsx:12",
+      path: "C:/repo/src/app.tsx",
+      lineStart: 12,
+      lineEnd: undefined,
+    });
+  });
+
+  it("rewrites MSYS paths carrying a line-range fragment", () => {
+    expect(
+      parseAssistantFileLink("/c/repo/src/app.tsx#L12-L20", {
+        workspaceRoot: "C:/repo",
+      }),
+    ).toEqual({
+      raw: "/c/repo/src/app.tsx#L12-L20",
+      path: "C:/repo/src/app.tsx",
+      lineStart: 12,
+      lineEnd: 20,
+    });
+  });
+
+  it("rewrites MSYS paths in authored links without a line suffix", () => {
+    expect(
+      parseAssistantFileLink("/c/repo/README.md", {
+        workspaceRoot: "C:/repo",
+        explicitLink: true,
+      }),
+    ).toEqual({
+      raw: "/c/repo/README.md",
+      path: "C:/repo/README.md",
+      lineStart: undefined,
+      lineEnd: undefined,
+    });
+  });
+
+  it("rewrites MSYS paths on another drive, outside the workspace", () => {
+    expect(
+      parseAssistantFileLink("/d/other/app.tsx:1", {
+        workspaceRoot: "C:/repo",
+      }),
+    ).toEqual({
+      raw: "/d/other/app.tsx:1",
+      path: "D:/other/app.tsx",
+      lineStart: 1,
+      lineEnd: undefined,
+    });
+  });
+
+  it("leaves MSYS-looking paths alone when the workspace root is POSIX", () => {
+    expect(
+      parseAssistantFileLink("/c/repo/src/app.tsx:12", {
+        workspaceRoot: "/repo",
+      }),
+    ).toEqual({
+      raw: "/c/repo/src/app.tsx:12",
+      path: "/c/repo/src/app.tsx",
+      lineStart: 12,
+      lineEnd: undefined,
+    });
+  });
+
+  it("leaves MSYS-looking paths alone when there is no workspace root", () => {
+    expect(parseAssistantFileLink("/c/repo/src/app.tsx:12")).toEqual({
+      raw: "/c/repo/src/app.tsx:12",
+      path: "/c/repo/src/app.tsx",
+      lineStart: 12,
+      lineEnd: undefined,
+    });
+  });
+
+  it("leaves multi-letter leading segments alone under a Windows workspace root", () => {
+    expect(
+      parseAssistantFileLink("/usr/local/lib/foo.ts:3", {
+        workspaceRoot: "C:/repo",
+      }),
+    ).toEqual({
+      raw: "/usr/local/lib/foo.ts:3",
+      path: "/usr/local/lib/foo.ts",
+      lineStart: 3,
+      lineEnd: undefined,
+    });
+    expect(
+      parseAssistantFileLink("/code/src/app.tsx:3", {
+        workspaceRoot: "C:/repo",
+      }),
+    ).toEqual({
+      raw: "/code/src/app.tsx:3",
+      path: "/code/src/app.tsx",
+      lineStart: 3,
+      lineEnd: undefined,
     });
   });
 
@@ -558,6 +741,13 @@ describe("normalizeInlinePathTarget", () => {
     ).toEqual({
       directory: "packages/app/src/components",
       file: "packages/app/src/components/message.tsx",
+    });
+  });
+
+  it("resolves MSYS paths back to workspace-relative paths under a Windows cwd", () => {
+    expect(normalizeInlinePathTarget("/c/repo/src/app.tsx", "C:/repo")).toEqual({
+      directory: "src",
+      file: "src/app.tsx",
     });
   });
 

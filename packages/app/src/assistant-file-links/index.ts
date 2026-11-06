@@ -1,3 +1,4 @@
+export { formatFileLinkDisplayText } from "./display-path";
 export {
   classifyAssistantFileLink,
   normalizeInlinePathTarget,

@@ -56,4 +56,19 @@ describe("formatFileLinkTooltipPath", () => {
       "src/app.ts:12",
     );
   });
+
+  it("shows a rewritten MSYS target relative to its Windows workspace", () => {
+    expect(
+      formatFileLinkTooltipPath({
+        target: { path: "C:/repo/src/app.tsx" },
+        workspaceRoot: "C:/repo",
+      }),
+    ).toBe("src/app.tsx");
+    expect(
+      formatFileLinkTooltipPath({
+        target: { path: "C:/repo/src/app.tsx", lineStart: 12 },
+        workspaceRoot: "C:/repo",
+      }),
+    ).toBe("src/app.tsx:12");
+  });
 });
